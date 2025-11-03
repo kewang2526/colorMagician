@@ -46,6 +46,7 @@ function draw() {
   }
   
   updateAndDrawRipples();
+  drawTitle();
   drawInstructions();
 }
 
@@ -100,15 +101,16 @@ function drawRipple(ripple) {
 
 }
 
-function drawInstructions() {
-  // draw title
+function drawTitle() {
   fill(255, 255, 255, 255);
   textAlign(LEFT);
   textSize(28);
-  text("Color Ripples", 10, 40);
-  
-  // draw instructions
+  text("Color Ripple", 10, 40);
+}
+
+function drawInstructions() {
   fill(255, 255, 255, 200);
+  textAlign(LEFT);
   textSize(14);
   text("Ripples appear automatically", 10, 70);
   text("Click anywhere to add more ripples", 10, 90);
