@@ -43,7 +43,8 @@ let emotionAnalysis = {
   dominantEmotion: "",
   colorMood: "",
   warmRatio: 0,
-  coolRatio: 0
+  coolRatio: 0,
+  neutralRatio: 0
 };
 
 function setup() {
@@ -129,10 +130,17 @@ function extractColors() {
   // reset everything
   colorPalette = [];
   extractedColors = [];
+  emotionAnalysis.dominantEmotion = "";
+  emotionAnalysis.colorMood = "";
+  emotionAnalysis.warmRatio = 0;
+  emotionAnalysis.coolRatio = 0;
+  emotionAnalysis.neutralRatio = 0;
   let foundColors = [];
   
   // look at pixels in the image,check every 10th pixel
   let step = 10;
+  let colorMap = {}; // use object to count color frequency
+  
   for (let x = 0; x < currentImg.width; x += step) {
     for (let y = 0; y < currentImg.height; y += step) {
       let pixel = currentImg.get(x, y);
@@ -140,31 +148,95 @@ function extractColors() {
       let g = green(pixel);
       let b = blue(pixel);
       
-      // skip pixels that are too dark or too light (boring colors)
-      let brightness = (r + g + b) / 3;
-      if (brightness < 30 || brightness > 230) continue;
       
-      foundColors.push({
-        r: r,
-        g: g,
-        b: b
+      // quantize colors more aggressively to group similar colors together
+      // divide by 15 and round to merge more similar colors
+      let qr = floor(r / 15) * 15;
+      let qg = floor(g / 15) * 15;
+      let qb = floor(b / 15) * 15;
+      let colorKey = qr + "," + qg + "," + qb;
+      
+      if (colorMap[colorKey]) {
+        colorMap[colorKey].count++;
+        // update average color (weighted by count)
+        let total = colorMap[colorKey].count;
+        colorMap[colorKey].r = (colorMap[colorKey].r * (total - 1) + r) / total;
+        colorMap[colorKey].g = (colorMap[colorKey].g * (total - 1) + g) / total;
+        colorMap[colorKey].b = (colorMap[colorKey].b * (total - 1) + b) / total;
+      } else {
+        colorMap[colorKey] = {
+          r: r,
+          g: g,
+          b: b,
+          count: 1
+        };
+      }
+    }
+  }
+  
+  // convert map to array
+  for (let key in colorMap) {
+    foundColors.push(colorMap[key]);
+  }
+  
+  // further merge very similar colors after quantization
+  let mergedColors = [];
+  for (let i = 0; i < foundColors.length; i++) {
+    let merged = false;
+    for (let j = 0; j < mergedColors.length; j++) {
+      // calculate color distance
+      let dr = foundColors[i].r - mergedColors[j].r;
+      let dg = foundColors[i].g - mergedColors[j].g;
+      let db = foundColors[i].b - mergedColors[j].b;
+      let distance = sqrt(dr * dr + dg * dg + db * db);
+      
+      // if colors are very similar (within 20 RGB units), treat as one color
+      if (distance < 20) {
+        let totalCount = mergedColors[j].count + foundColors[i].count;
+        mergedColors[j].r = (mergedColors[j].r * mergedColors[j].count + foundColors[i].r * foundColors[i].count) / totalCount;
+        mergedColors[j].g = (mergedColors[j].g * mergedColors[j].count + foundColors[i].g * foundColors[i].count) / totalCount;
+        mergedColors[j].b = (mergedColors[j].b * mergedColors[j].count + foundColors[i].b * foundColors[i].count) / totalCount;
+        mergedColors[j].count = totalCount;
+        merged = true;
+        break;
+      }
+    }
+    if (!merged) {
+      mergedColors.push({
+        r: foundColors[i].r,
+        g: foundColors[i].g,
+        b: foundColors[i].b,
+        count: foundColors[i].count
       });
     }
   }
   
+  // sort by count (most frequent first)
+  mergedColors.sort(function(a, b) {
+    return b.count - a.count;
+  });
+  
+  foundColors = mergedColors;
+  
   colorPalette = [];
   extractedColors = [];
   
-  // pick random colors for particles (need more)
+  // pick colors for particles
   for (let i = 0; i < 20 && i < foundColors.length; i++) {
-    let randomIndex = floor(random(foundColors.length));
-    extractedColors.push(foundColors[randomIndex]);
+    extractedColors.push({
+      r: foundColors[i].r,
+      g: foundColors[i].g,
+      b: foundColors[i].b
+    });
   }
   
-  // pick random colors for palette (just 8 is enough)
-  for (let i = 0; i < 8 && i < foundColors.length; i++) {
-    let randomIndex = floor(random(foundColors.length));
-    colorPalette.push(foundColors[randomIndex]);
+  // pick colors for palette (top 9 most frequent colors)
+  for (let i = 0; i < 9 && i < foundColors.length; i++) {
+    colorPalette.push({
+      r: foundColors[i].r,
+      g: foundColors[i].g,
+      b: foundColors[i].b
+    });
   }
   
   // figure out if colors are warm or cool
@@ -210,7 +282,14 @@ function createParticles() {
 
 function analyzeColorEmotions() {
   // nothing to analyze
-  if (colorPalette.length === 0) return;
+  if (colorPalette.length === 0) {
+    emotionAnalysis.dominantEmotion = "";
+    emotionAnalysis.colorMood = "";
+    emotionAnalysis.warmRatio = 0;
+    emotionAnalysis.coolRatio = 0;
+    emotionAnalysis.neutralRatio = 0;
+    return;
+  }
   
   let warmCount = 0;
   let coolCount = 0;
@@ -236,31 +315,28 @@ function analyzeColorEmotions() {
   let coolRatio = coolCount / colorPalette.length;
   let neutralRatio = 1 - warmRatio - coolRatio;
   
-  // calculate the difference between warm and cool
-  let ratioDiff = warmRatio - coolRatio;
-  
   let emotion = "";
   let description = "";
   
-  // decide emotion based on warm/cool ratio difference and dominance
-  if (ratioDiff > 0.4) {
-    // strongly warm dominant
+  // decide emotion based on warm/cool ratio
+  // check warm ratio first
+  if (warmRatio > 0.6) {
     emotion = "Energetic";
     description = "Energetic colors create feelings of energy and warmth";
-  } else if (ratioDiff > 0.15) {
-    // moderately warm dominant
+  } else if (warmRatio > 0.3) {
     emotion = "Cheerful";
     description = "Cheerful colors bring a sense of joy and positivity";
-  } else if (ratioDiff < -0.4) {
-    // strongly cool dominant
+  } 
+  // then check cool ratio
+  else if (coolRatio > 0.6) {
     emotion = "Gentle";
     description = "Gentle colors evoke feelings of peace and calmness";
-  } else if (ratioDiff < -0.15) {
-    // moderately cool dominant
+  } else if (coolRatio > 0.3) {
     emotion = "Calm";
     description = "Calm colors create a peaceful and relaxing atmosphere";
-  } else {
-    // balanced or neutral
+  } 
+  // balanced cases
+  else {
     if (neutralRatio > 0.5) {
       emotion = "Neutral";
       description = "Neutral colors create a balanced and harmonious feeling";
@@ -275,6 +351,7 @@ function analyzeColorEmotions() {
   emotionAnalysis.colorMood = description;
   emotionAnalysis.warmRatio = warmRatio;
   emotionAnalysis.coolRatio = coolRatio;
+  emotionAnalysis.neutralRatio = neutralRatio;
 }
 
 function draw() {
@@ -434,37 +511,66 @@ function drawWarmCoolBar(startY) {
   let barWidth = 200;
   let barHeight = 14;
   
-  // default to 50/50 if we dont have data
-  let warmPercent = 0.5;
-  let coolPercent = 0.5;
+  // use warmRatio, neutralRatio and coolRatio directly
+  let warmPercent = emotionAnalysis.warmRatio;
+  let neutralPercent = emotionAnalysis.neutralRatio;
+  let coolPercent = emotionAnalysis.coolRatio;
   
-  // calculate actual percentages
-  let totalRatio = emotionAnalysis.warmRatio + emotionAnalysis.coolRatio;
-  if (totalRatio > 0) {
-    warmPercent = emotionAnalysis.warmRatio / totalRatio;
-    coolPercent = emotionAnalysis.coolRatio / totalRatio;
+  // calculate positions for labels above the bar
+  let labelY = startY - 8;
+  let labelSpacing = 50;
+  let labelX = paletteX;
+  
+  // draw labels above bar in order: warm, cool, neutral
+  fill(255);
+  textSize(11);
+  textAlign(LEFT);
+  
+  // only show labels that have values > 0
+  if (warmPercent > 0) {
+    text("Warm", labelX, labelY);
+    labelX += labelSpacing;
+  }
+  
+  if (coolPercent > 0) {
+    text("Cool", labelX, labelY);
+    labelX += labelSpacing;
+  }
+  
+  if (neutralPercent > 0) {
+    text("Neutral", labelX, labelY);
   }
   
   // gray background bar
   fill(128, 128, 128, 100);
   rect(paletteX, startY, barWidth, barHeight);
   
-  // red part for warm
-  fill(255, 100, 100, 200);
+  // calculate widths
   let warmWidth = warmPercent * barWidth;
-  rect(paletteX, startY, warmWidth, barHeight);
+  let neutralWidth = neutralPercent * barWidth;
+  let coolWidth = coolPercent * barWidth;
+  
+  let currentX = paletteX;
+  
+  // red part for warm
+  if (warmPercent > 0) {
+    fill(255, 100, 100, 200);
+    rect(currentX, startY, warmWidth, barHeight);
+    currentX += warmWidth;
+  }
   
   // blue part for cool
-  fill(100, 100, 255, 200);
-  let coolWidth = coolPercent * barWidth;
-  rect(paletteX + warmWidth, startY, coolWidth, barHeight);
+  if (coolPercent > 0) {
+    fill(100, 100, 255, 200);
+    rect(currentX, startY, coolWidth, barHeight);
+    currentX += coolWidth;
+  }
   
-  // labels
-  fill(255);
-  textSize(11);
-  textAlign(LEFT);
-  text("Warm", paletteX, startY - 3);
-  text("Cool", paletteX + barWidth + 5, startY - 3);
+  // gray part for neutral
+  if (neutralPercent > 0) {
+    fill(150, 150, 150, 200);
+    rect(currentX, startY, neutralWidth, barHeight);
+  }
 }
 
 function drawInfo() {
