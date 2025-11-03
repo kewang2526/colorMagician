@@ -101,12 +101,18 @@ function drawRipple(ripple) {
 }
 
 function drawInstructions() {
-  fill(255, 255, 255, 200);
+  // draw title
+  fill(255, 255, 255, 255);
   textAlign(LEFT);
+  textSize(28);
+  text("Color Ripples", 10, 40);
+  
+  // draw instructions
+  fill(255, 255, 255, 200);
   textSize(14);
-  text("Ripples appear automatically", 10, 50);
-  text("Click anywhere to add more ripples", 10, 70);
-  text("Colors blend when ripples overlap", 10, 90);
+  text("Ripples appear automatically", 10, 70);
+  text("Click anywhere to add more ripples", 10, 90);
+  text("Colors blend when ripples overlap", 10, 110);
 }
 
 function mousePressed() {

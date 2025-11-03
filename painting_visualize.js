@@ -52,8 +52,8 @@ function setup() {
   // make buttons for each painting
   for (let i = 0; i < famousPaintings.length; i++) {
     let btn = createButton(famousPaintings[i].name);
-    // space them out
-    btn.position(10 + i * 140, 10);
+    // space them out, position below title
+    btn.position(50 + i * 140, 70);
     btn.mousePressed(function() {
       switchPainting(i);
     });
@@ -61,7 +61,7 @@ function setup() {
   
   // button to upload your own image
   let uploadBtn = createFileInput(handleImageUpload);
-  uploadBtn.position(10 + famousPaintings.length * 140, 10);
+  uploadBtn.position(50 + famousPaintings.length * 140, 70);
   // only images
   uploadBtn.attribute('accept', 'image/*');
   uploadBtn.style('font-size', '12px');
@@ -234,20 +234,40 @@ function analyzeColorEmotions() {
   // calculate percentages
   let warmRatio = warmCount / colorPalette.length;
   let coolRatio = coolCount / colorPalette.length;
+  let neutralRatio = 1 - warmRatio - coolRatio;
+  
+  // calculate the difference between warm and cool
+  let ratioDiff = warmRatio - coolRatio;
   
   let emotion = "";
   let description = "";
   
-  // decide what emotion
-  if (warmCount > coolCount) {
-    emotion = "Warm";
-    description = "Warm colors create feelings of energy and warmth";
-  } else if (coolCount > warmCount) {
-    emotion = "Cool";
-    description = "Cool colors evoke feelings of peace and calmness";
+  // decide emotion based on warm/cool ratio difference and dominance
+  if (ratioDiff > 0.4) {
+    // strongly warm dominant
+    emotion = "Energetic";
+    description = "Energetic colors create feelings of energy and warmth";
+  } else if (ratioDiff > 0.15) {
+    // moderately warm dominant
+    emotion = "Cheerful";
+    description = "Cheerful colors bring a sense of joy and positivity";
+  } else if (ratioDiff < -0.4) {
+    // strongly cool dominant
+    emotion = "Gentle";
+    description = "Gentle colors evoke feelings of peace and calmness";
+  } else if (ratioDiff < -0.15) {
+    // moderately cool dominant
+    emotion = "Calm";
+    description = "Calm colors create a peaceful and relaxing atmosphere";
   } else {
-    emotion = "Balanced";
-    description = "Warm and cool colors are balanced";
+    // balanced or neutral
+    if (neutralRatio > 0.5) {
+      emotion = "Neutral";
+      description = "Neutral colors create a balanced and harmonious feeling";
+    } else {
+      emotion = "Balanced";
+      description = "Warm and cool colors are balanced";
+    }
   }
   
   // save results
@@ -274,7 +294,7 @@ function draw() {
   // draw the painting/image
   if (currentImg) {
     let imgX = 50;
-    let imgY = 120;
+    let imgY = 160;
     let imgWidth = 500;
     // keep proportions
     let imgHeight = (currentImg.height / currentImg.width) * imgWidth;
@@ -324,7 +344,7 @@ function drawParticles() {
 function drawColorPalette() {
   // where to start on right side
   let paletteX = 600;
-  let paletteY = 120;
+  let paletteY = 160;
   
   // title
   fill(255);
@@ -371,7 +391,7 @@ function drawEmotionAnalysis() {
   if (!emotionAnalysis.dominantEmotion) return;
   
   let paletteX = 600;
-  let paletteY = 120;
+  let paletteY = 160;
   let spaceBetween = 70;
   let numCols = 3;
   
@@ -448,11 +468,16 @@ function drawWarmCoolBar(startY) {
 }
 
 function drawInfo() {
-  // show painting name at top
-  fill(255);
+  // draw title
+  fill(255, 255, 255, 255);
   textAlign(LEFT);
+  textSize(28);
+  text("Painting Visualize", 50, 40);
+  
+  // show painting name
+  fill(255);
   textSize(18);
-  text(currentPaintingName, 50, 100);
+  text(currentPaintingName, 50, 130);
   
   // show message if no image loaded
   if (!currentImg) {

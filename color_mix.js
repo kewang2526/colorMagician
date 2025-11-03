@@ -302,12 +302,18 @@ function removeDot(index) {
 }
 
 function drawInstructions() {
-  fill(255, 255, 255, 200);
+  // draw title
+  fill(255, 255, 255, 255);
   textAlign(LEFT);
+  textSize(28);
+  text("Color Mix", 20, 40);
+  
+  // draw instructions
+  fill(255, 255, 255, 200);
   textSize(14);
-  text("Drag two dots together to mix colors", 20, 30);
-  text("Mixed dots get a new random shape", 20, 50);
-  text("Click anywhere to add new color dots", 20, 70);
+  text("Drag two dots together to mix colors", 20, 70);
+  text("Mixed dots get a new random shape", 20, 90);
+  text("Click anywhere to add new color dots", 20, 110);
 }
 
 function setupNavigationButton() {
