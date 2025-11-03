@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.10/lib/p5.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.10/lib/addons/p5.sound.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <meta charset="utf-8" />
+    <title>Color Magician</title>
+  </head>
+  <body>
+    <main>
+    </main>
+    
+    <!-- Load different scenes based on URL parameters -->
+    <script>
+      // Get URL parameters, default is scene 0
+      const urlParams = new URLSearchParams(window.location.search);
+      const scene = parseInt(urlParams.get('scene')) || 0;
+      
+      // Load corresponding scene file
+      if (scene === 0) {
+        document.write('<script src="color_mix.js"><\/script>');
+      } else if (scene === 1) {
+        document.write('<script src="color_ripple.js"><\/script>');
+      } else if (scene === 2) {
+        document.write('<script src="painting_visualize.js"><\/script>');
+      }
+    </script>
+  </body>
+</html>
